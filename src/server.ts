@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 // import express from "express";
 // import "express-async-errors";
 
@@ -9,7 +11,9 @@
 
 import app from "./app";
 
-const port = 3000;
+// const port = 3000;
+
+const port = process.env.PORT;
 
 app.listen(port, () => {
     console.log(`[server]: Server is running at http://localhost:${port}`);
