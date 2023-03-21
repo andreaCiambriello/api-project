@@ -1,10 +1,3 @@
-// test("test", () => {
-
-//  expect(true).toBe(true);
-// });
-
-//commento per non cancellare il vecchio, per ripasso, questo era un semplice test di server quando era un unico file
-
 import supertest from "supertest";
 import app from "./app";
 import { prismaMock } from "./lib/prisma/client.mock";
@@ -42,4 +35,21 @@ test("GET /planets", async () => {
         .expect("Content-Type", /application\/json/);
 
     expect(response.body).toEqual(planets);
+});
+
+
+test("POST /planets", async () => {
+    const planet = {
+        name: "Mercury",
+        diameter: 1234,
+        moons: 12,
+    };
+
+    const response = await request
+        .post("/planets")
+        .send(planet)
+        .expect(201)
+        .expect("Content-Type", /application\/json/);
+
+    expect(response.body).toEqual(planet);
 });
