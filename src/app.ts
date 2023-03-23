@@ -1,6 +1,5 @@
 import express from "express";
 import "express-async-errors";
-import { nextTick } from "process";
 import prisma from "./lib/prisma/client";
 import { validate, validationErrorMiddleware , planetSchema, PlanetData } from "./lib/validation";
 
@@ -37,6 +36,24 @@ app.post("/planets", validate({ body: planetSchema }), async (request, response)
     });
 
     response.status(201).json(planet);
+});
+
+app.put("/planets/:id(\\d+)", validate({ body: planetSchema }), async (request, response, next) => {
+    const planetId = Number(request.params.id);
+    const planetData: PlanetData = request.body;
+
+    try {
+        const planet = await prisma.planet.update({
+            where: { id: planetId },
+            data: planetData
+        });
+
+        response.status(200).json(planet);
+    } catch (error) {
+        response.status(404);
+        next(`Cannot PUT /planets/${planetId}`);
+    }
+
 });
 
 app.use(validationErrorMiddleware);
