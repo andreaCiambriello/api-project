@@ -1,0 +1,114 @@
+//COMMENTO DEL FILE app.ts:
+importiamo express e express-async-errors per creare un server express correttamente
+
+importiamo prisma, che altro non è che un'instanza di Prisma Client creata in un altro file e importata qui
+
+creiamo il server express e lo assegnamo alla variabile app
+
+app.use serve ad aggiungere una funzione middleware, una funzione che viene eseguita tra il momento in cui il server riceve una richiesta
+HTTP e il momento in cui restituisce un risposta, all'applicazione Express. express.json() consente di analizzare i dati in formato JSON e
+di convertirli in oggetto Javascript
+Quindi nel nostro caso app.use(express.json()) serve a configurare l'applicazione express per analizzare i dati della richiesta HTTP come
+oggetti JSON
+
+app.get serve a definire una route HTTP per le richieste GET, quando un client invia una richiesta HTTP GET al server, il server risponde
+tramite il metodo app.get
+nel nostro caso quando un client fa una richiesta HTTP GET al route /planets, il server fa partire la middleware asincrona che tramite
+Prisma Client, importato nel nome di prisma, effettua una query al database per recuperare l'elenco (findMany) dei pianeti (dati) presenti
+nel database. Una volta finita la query al database, la risposa è inviata in formato JSON (response.json(planets);)
+
+app.post serve a definire una route HTTP per le richieste POST, quando un client invia una richiesta HTTP POST al server, il server risponde
+tramite il metodo app.post
+Nel nostro caso quando il client fa una richiesta HTTP POST al route /planets, il server esegue la middleware validate per validare il corpo
+della richiesta POST utilizzando uno schema definito (planetSchema), poi fa partire la middleware asincrona che elabora il corpo della
+richiesta e restituisce una risposta, in questo caso prende il corpo della richiesta POST (request.body) e lo salva in planetData. Poi
+viene utilizzato Prisma Client per creare un nuovo record nel database con i dati dei planetData utilizzando il metodo prisma.planet.create
+Infine viene restituita una risposta al client con codice 201 Created e il corpo della risposta in formato JSON contenente l'ogetto planet
+appena salvato nel database
+
+app.use(validationErrorMiddleware) è una middleware che viene eseguita per tutte le richieste di ingresso e di uscita dal server, per
+gestire eventuali errori di validazione dei dati durante le richieste (vedere il file che le contiene)
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+//COMMENTO DEL FILE sever.test.ts:
+
+importiamo supertest e app
+
+importiamo prismaMock che contiene il file mock che simula il database e le sue query su cui effettuare i test
+
+supertest
+
+Il metodo describe consente di wrappare più test sulla stessa richiesta GET e sullo stesso route /planets
+
+Il metodo test da il via al test di nome Valid request per convenzione, avvia una middleware asincrona. Dentro la middleware c'è un array
+di oggetti contenente le informazioni da testare. Viene impostato il mock del Prisma Client utilizzando il metodo mockResolvedValue che
+restituisce la lista di pianeti quando viene chiamato il metodo findMany. Il findMany viene quindi eseguito sul mock
+
+Viene poi inviata un richiesta GET alla route /planets utilizzando request.get, verifichiamo che la risposta abbia status code 200 e che
+il contenuto sia di tipo JSON. Infine si verifica che il corpo della risposta sia uguale all'array di oggetti planets
+
+Il secondo metodo describe funziona come il primo, solo che qui wrappa i test che vengono eseguiti sulle richieste POST della route /planets.
+
+Il primo test prende il nome di valid request per convenzione, ed esegue il test di una richiesta valida. Ha una middleware asincrona con
+l'oggetto di cui vogliamo simulare l'invio, l'oggetto è intero ovvero non tutte le proprietà, diversamente da send in cui ci sono solo le
+obbligatorie, questo perché al mock vogliamo passarlo intero perché dovrà poi coincidere con la response definita in app.ts e testata nel file
+di testing, quindi intero.
+
+Il test utilizza prismaMock per simulare il comportamento del database, usa il metodo create per crea un nuovo record che poi passiamo a
+mockResolvedValue.
+Il test invia la richiesta POST al server nel route /planets, verifica che sia stato inviato l'oggetto corretto, in questo caso solo le
+proprietà obbligatorie dello schema, verifica che il codice di stato sia 201 (creato con successo) e che il tipo di contenuto della risposta
+sia JSON, infine verifica che il corpo della risposta sia uguale all'oggetto inviato col toEqual, che corrisponde anche a send
+
+Il secondo test prende il nome di invalid request per convenzione ed esegue il test di una richiesta non valida, in questo caso manca la
+proprietà name nell'oggetto che mandiamo che è obbligatoria, definito in planet.ts ....
+Il test ha una middleware asincrona, l'oggetto non valido che manda, poi invia la richiesta POST al server nel route /planets, verifica che
+sia stato inviato l'oggetto corretto, verifica che il codice sia stato 422 (non processabile) e che il  tipo di contenuto della risposta sia
+JSON, infine verifica che il corpo della risposta contenga un oggetto error con un array di errori relativi al corpo della richiesta.
+Più in dettaglio, l'oggetto passato alla funzione toEqual ha una proprietà "errors", che è un oggetto che a sua volta ha una proprietà
+"body". La proprietà "body" viene verificata utilizzando la funzione expect.any(Array), che verifica che "body" sia un array. In altre
+parole, il test si aspetta che la risposta del server contenga un oggetto "errors" con almeno un errore relativo al corpo della richiesta.
+Se la risposta non soddisfa questa aspettativa, il test fallirà.
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+//COMMENTO DEL FILE planets.ts:
+Questo codice definisce uno schema per la validazione dei dati dei record del database (i pianeti), utilizzando la libreria typeBox. Lo
+schema è definito in planetSchema che specifica i campi richiesti per un oggetto di tipo PlanetData, alcuni sono opzionali, altri obligatori
+Il tipo PlanetData viene generato a partire dallo schema planetSchema utilizzando la funzione Static di TypeBox.
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+//COMMENTO DEL FILE index.ts:
+Questo codice definisce una serie di middleware per la validazione dei dati in ingresso alle richieste dei server, le middleware si basano
+sulla libreria "express-json-validator-middleware".
+
+La costante validator istanzia un oggetto Validator e gli viene fatto il metodo validate e viene poi assegnata alla costante validate che
+viene poi esportata in planets, in poche parole questa costante ha una middleware che esegue la validazione degli oggetti JSON utilizzando
+lo schema JSON specificato e restituisce un errore di validazione se lo schema non viene rispettato.
+
+La funzione addFormats viene utilizzata per aggiungere alcuni formati personalizzari al validatore AJV utilizzato da
+express-json-validator-middleware. In particolare, il formato date-time viene aggiunto al validatore e vengono aggiunti due keyword
+personalizzate chiamate kind e modifier.
+
+La costante validationErrorMiddleware definisce una middleware per gestire gli errori di validazione dei dati di ingresso alle richieste.
+Se viene generato un errore di validazione, il middleware restituisce una risposta con un codice di stato 422 e un corpo di risposta
+contente l'array degli errori di validazione. Se nessun errore viene generato, si passa al middleware successivo
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+//COMMENTO DEL FILE client.ts:
+importiamo Prisma Cliente, ne creiamo un instanza e la esportiamo in app in modo da separare i processi
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+
+//COMMENTO DEL FILE client.mock.ts:
+creiamo un file mock, un file che simula il comportamento di un oggetto, classe e nel nostro caso di un server, al fine di emularne il
+comportamento e utilizzarlo per fare testing in un ambiente controllato e riproducibile, e lo utiliziamo nel file test per eseguire i
+nostri test su questa copia e non sul vero database
+
+Questo codice è un codice mock standard preso da https://www.prisma.io/docs/guides/testing/unit-testing si chiama singleton
+
+Quello che dovremo fare noi sarà solo andare in jest.config.js e aggiungere clearMocks: true, che reset il mock dopo ogni test effettuato
+e setupFilesAferEnv: [.src/lib/prisma/client.mock.ts] che indica il file mock da eseguire
